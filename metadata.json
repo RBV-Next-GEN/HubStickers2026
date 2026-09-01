@@ -1,0 +1,8 @@
+{
+  "name": "Hub Stickers Pro 2026",
+  "description": "Professional AI Sticker Generator & Studio Suite with smart cutouts, style sampling, multi-layer canvas editor, and sticker sheet export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
