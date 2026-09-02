@@ -1,48 +1,71 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export const SectionLabel: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color }) => (
-  <div className="flex items-center px-2">
-    <span className="text-[13px] font-bold tracking-[1.5px] uppercase" style={{ color: color || 'rgba(218,220,224,0.9)' }}>
-      {children}
-    </span>
+export const SectionLabel: React.FC<{
+  children: React.ReactNode;
+  step?: string;
+  badge?: string;
+}> = ({ children, step, badge }) => (
+  <div className="flex items-center justify-between px-1 mb-1">
+    <div className="flex items-center gap-2">
+      {step && (
+        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-black text-[11px]">
+          {step}
+        </span>
+      )}
+      <span className="text-[12px] font-extrabold tracking-wider uppercase text-slate-800 dark:text-slate-200">
+        {children}
+      </span>
+    </div>
+    {badge && (
+      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10">
+        {badge}
+      </span>
+    )}
   </div>
 );
 
 export const PillButton: React.FC<{
-  icon?: React.ReactNode; 
+  icon?: React.ReactNode;
   children: React.ReactNode;
-  variant?: 'filled' | 'outline' | 'solid'; 
+  variant?: 'filled' | 'outline' | 'solid';
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
   themeColor?: string;
 }> = ({ icon, children, variant = 'filled', onClick, disabled = false, className = '', themeColor }) => {
-  const base = 'flex items-center gap-[4px] justify-center w-full h-[36px] rounded-xl font-bold text-[13px] tracking-tight transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed uppercase';
-  const customBg = themeColor || '#969696';
+  const base = 'inline-flex items-center gap-2 justify-center h-[38px] rounded-xl font-bold text-xs tracking-wide transition-all cursor-pointer select-none disabled:opacity-40 disabled:cursor-not-allowed uppercase';
+
   const variants: Record<string, string> = {
-    filled: "text-black pl-[8px] pr-[16px] py-1 select-none shadow-lg shadow-black/20",
-    outline: 'border border-[#595959] hover:bg-white/5 active:bg-white/10 backdrop-blur-[40px] pl-[8px] pr-[16px] py-2 text-white select-none',
-    solid: 'bg-white hover:bg-gray-200 active:bg-gray-300 text-black pl-[8px] pr-[16px] py-2 select-none',
+    filled: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 active:scale-[0.98]',
+    outline: 'border border-slate-200 dark:border-white/15 bg-white/70 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 active:scale-[0.98]',
+    solid: 'bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 shadow-md active:scale-[0.98]',
   };
+
   return (
-    <button type="button" className={`${base} ${variants[variant]} ${className}`} onClick={onClick} disabled={disabled} style={variant === 'filled' ? { backgroundColor: customBg } : {}}>
-      {icon && <span className="flex items-center justify-center w-5 h-5">{icon}</span>}
-      <span>{children}</span>
+    <button
+      type="button"
+      className={`${base} ${variants[variant]} ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+      style={variant === 'filled' && themeColor ? { backgroundColor: themeColor } : {}}
+    >
+      {icon && <span className="flex items-center justify-center shrink-0">{icon}</span>}
+      <span className="truncate">{children}</span>
     </button>
   );
 };
 
 export const FieldDropdown: React.FC<{
-  label: string; 
-  value: string; 
+  label: string;
+  value: string;
   options: string[];
-  onChange: (val: string) => void; 
+  onChange: (val: string) => void;
   className?: string;
-  accentColor?: string;
   renderOption?: (opt: string) => React.ReactNode;
-}> = ({ label, value, options, onChange, className = '', accentColor, renderOption }) => {
+}> = ({ label, value, options, onChange, className = '', renderOption }) => {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
       if (!ref.current || ref.current.contains(event.target as Node)) return;
@@ -50,35 +73,53 @@ export const FieldDropdown: React.FC<{
     };
     document.addEventListener('mousedown', listener);
     document.addEventListener('touchstart', listener);
-    return () => { 
-      document.removeEventListener('mousedown', listener); 
-      document.removeEventListener('touchstart', listener); 
+    return () => {
+      document.removeEventListener('mousedown', listener);
+      document.removeEventListener('touchstart', listener);
     };
   }, [ref]);
 
   return (
     <div ref={ref} className={`relative ${className}`}>
-      <button type="button" onClick={() => setIsOpen(!isOpen)}
-        className="w-full text-left border border-[#333] hover:border-[#555] bg-white/5 backdrop-blur-md transition-all rounded-xl flex flex-col gap-0.5 justify-center pb-2 pl-3 pr-2 pt-[6px] select-none focus:outline-none min-h-[52px]">
-        <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest">{label}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {renderOption ? renderOption(value) : <span className="text-[13px] font-bold text-white tracking-tight">{value}</span>}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full text-left border border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-white/20 bg-white dark:bg-white/5 transition-all rounded-2xl flex flex-col justify-center px-3.5 py-2.5 select-none focus:outline-none shadow-xs min-h-[56px]"
+      >
+        <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider">
+          {label}
+        </span>
+        <div className="flex items-center justify-between mt-0.5">
+          <div className="flex items-center gap-2 overflow-hidden">
+            {renderOption ? renderOption(value) : (
+              <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{value}</span>
+            )}
           </div>
-          <span className={`material-symbols-outlined text-[18px] transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ color: accentColor || 'rgba(218,220,224,0.5)' }}>
-            unfold_more
+          <span className={`text-[12px] text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+            ▼
           </span>
         </div>
       </button>
+
       {isOpen && (
-        <div className="absolute z-50 top-[calc(100%+6px)] left-0 w-full bg-[#111] border border-[#333] rounded-2xl overflow-hidden shadow-2xl animate-dropdown origin-top">
-          <div className="max-h-56 overflow-y-auto dark-scrollbar py-1">
+        <div className="absolute z-50 top-[calc(100%+6px)] left-0 w-full bg-white dark:bg-[#15161f] border border-slate-200 dark:border-white/15 rounded-2xl overflow-hidden shadow-2xl animate-dropdown origin-top">
+          <div className="max-h-60 overflow-y-auto studio-scrollbar py-1">
             {options.map((opt) => (
-              <button key={opt} type="button"
-                className={`w-full text-left px-3 py-2.5 text-[13px] font-bold tracking-tight hover:bg-white/10 transition-colors flex items-center gap-2 ${value === opt ? 'bg-white/5 text-white' : 'text-white/50'}`}
-                onClick={() => { onChange(opt); setIsOpen(false); }}>
+              <button
+                key={opt}
+                type="button"
+                className={`w-full text-left px-3.5 py-2.5 text-xs font-bold transition-colors flex items-center justify-between ${
+                  value === opt
+                    ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10'
+                }`}
+                onClick={() => {
+                  onChange(opt);
+                  setIsOpen(false);
+                }}
+              >
                 {renderOption ? renderOption(opt) : opt}
-                {value === opt && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentColor || '#fff' }} />}
+                {value === opt && <span className="text-indigo-600 dark:text-indigo-400 font-bold ml-2">✓</span>}
               </button>
             ))}
           </div>
@@ -89,21 +130,34 @@ export const FieldDropdown: React.FC<{
 };
 
 export const SegmentedToggle: React.FC<{
-  value: string; 
+  value: string;
   items: { value: string; label: string; icon?: React.ReactNode }[];
   onChange: (val: string) => void;
   numCols?: number;
-  accentColor?: string;
-}> = ({ value, items, onChange, numCols, accentColor }) => {
+}> = ({ value, items, onChange, numCols }) => {
   const isGrid = numCols && numCols > 0;
   return (
-    <div className={`w-full border border-[#333] rounded-xl overflow-hidden bg-white/5 backdrop-blur-md ${isGrid ? 'grid p-1 gap-1' : 'flex items-center p-1 gap-1'}`} style={isGrid ? { gridTemplateColumns: `repeat(${numCols}, 1fr)` } : {}}>
+    <div
+      className={`w-full border border-slate-200 dark:border-white/10 rounded-2xl p-1 bg-slate-100/80 dark:bg-white/5 backdrop-blur-sm ${
+        isGrid ? 'grid gap-1' : 'flex items-center gap-1'
+      }`}
+      style={isGrid ? { gridTemplateColumns: `repeat(${numCols}, 1fr)` } : {}}
+    >
       {items.map((item) => {
         const isActive = value === item.value;
         return (
-          <button key={item.value} type="button" onClick={() => onChange(item.value)} style={isActive && accentColor ? { backgroundColor: accentColor } : {}}
-            className={`flex-1 flex items-center justify-center gap-1.5 h-[34px] px-2 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${isActive ? (!accentColor ? 'bg-[#969696] text-black' : 'text-black') : 'text-white/40 hover:text-white/80 hover:bg-white/5'}`}>
-            {item.icon}<span className="truncate">{item.label}</span>
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => onChange(item.value)}
+            className={`flex-1 flex items-center justify-center gap-1.5 h-[34px] px-2.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+              isActive
+                ? 'bg-white dark:bg-indigo-600 text-indigo-700 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            {item.icon && <span className="shrink-0">{item.icon}</span>}
+            <span className="truncate">{item.label}</span>
           </button>
         );
       })}
@@ -112,16 +166,22 @@ export const SegmentedToggle: React.FC<{
 };
 
 export const TextInput: React.FC<{
-  value: string; 
-  onChange: (val: string) => void; 
+  value: string;
+  onChange: (val: string) => void;
   placeholder?: string;
   label?: string;
-  accentColor?: string;
-}> = ({ value, onChange, placeholder, label, accentColor }) => (
-  <div className="flex flex-col gap-1.5 w-full">
-    {label && <p className="text-[11px] font-bold text-white/30 uppercase tracking-widest pl-1">{label}</p>}
-    <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-      className="border border-[#333] hover:border-[#444] focus:border-[#555] rounded-xl w-full h-[64px] px-3 py-3 resize-none bg-white/5 text-[13px] font-bold text-white placeholder-white/20 tracking-tight focus:outline-none transition-all" 
-      style={value ? { borderColor: accentColor + '44' } : {}} />
+}> = ({ value, onChange, placeholder, label }) => (
+  <div className="flex flex-col gap-1 w-full">
+    {label && (
+      <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider pl-1">
+        {label}
+      </span>
+    )}
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="border border-slate-200 dark:border-white/10 hover:border-indigo-400 dark:hover:border-white/20 focus:border-indigo-500 dark:focus:border-indigo-400 rounded-2xl w-full h-[62px] px-3.5 py-2.5 resize-none bg-white dark:bg-white/5 text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none transition-all shadow-xs"
+    />
   </div>
 );

@@ -19,6 +19,7 @@ export type StickerShape = 'die-cut' | 'circle' | 'square' | 'badge' | 'heart' |
 export type StickerPalette = 'default' | 'vibrant' | 'pastel' | 'neon' | 'vintage' | 'noir' | 'earthy';
 export type StickerFinish = 'glossy' | 'matte' | 'glitter' | 'holographic-foil' | 'metallic';
 export type CroppingMode = '1:1' | 'tight';
+export type AiEngine = 'nano-banana-pro' | 'nano-banana-turbo' | 'gemini-3.7-pro' | 'flow-vector' | 'modnet-local';
 
 export interface CanvasItem {
   id: string;
@@ -56,6 +57,7 @@ export interface StickerState {
 }
 
 export interface StickerSettings {
+  aiEngine: AiEngine;
   style: StickerStyle;
   shape: StickerShape;
   palette: StickerPalette;

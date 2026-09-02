@@ -1,23 +1,64 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --border-subtle: #e2e8f0;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  .dark {
+    --bg-main: #090a0f;
+    --bg-surface: #12131a;
+    --bg-subtle: #1a1b24;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background-color: #0d0e12;
-    color: #e2e8f0;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
 }
 
-.checkerboard {
-  background-color: #1e2029;
-  background-image: linear-gradient(45deg, #151720 25%, transparent 25%),
-    linear-gradient(-45deg, #151720 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #151720 75%),
-    linear-gradient(-45deg, transparent 75%, #151720 75%);
+/* Checkerboards */
+.checkerboard-dark {
+  background-color: #161720;
+  background-image: linear-gradient(45deg, #101118 25%, transparent 25%),
+    linear-gradient(-45deg, #101118 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #101118 75%),
+    linear-gradient(-45deg, transparent 75%, #101118 75%);
   background-size: 24px 24px;
   background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
 }
 
+.checkerboard-light {
+  background-color: #f1f5f9;
+  background-image: linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
+}
+
+.checkerboard {
+  background-color: #1a1b26;
+  background-image: linear-gradient(45deg, #12131c 25%, transparent 25%),
+    linear-gradient(-45deg, #12131c 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #12131c 75%),
+    linear-gradient(-45deg, transparent 75%, #12131c 75%);
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0px;
+}
+
+/* Realistic Sticker Shadows */
 .drop-shadow-sticker {
   filter: drop-shadow(0px 0px 1px #ffffff)
     drop-shadow(0px 0px 4px rgba(255, 255, 255, 0.9))
@@ -26,37 +67,72 @@
 
 .drop-shadow-sticker-thick {
   filter: drop-shadow(0px 0px 2px #ffffff)
-    drop-shadow(0px 0px 8px rgba(255, 255, 255, 0.95))
-    drop-shadow(0px 12px 24px rgba(0, 0, 0, 0.5));
+    drop-shadow(0px 0px 10px rgba(255, 255, 255, 0.98))
+    drop-shadow(0px 16px 32px rgba(0, 0, 0, 0.45));
 }
 
 .drop-shadow-holographic {
-  filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.6))
-    drop-shadow(0 0 20px rgba(56, 189, 248, 0.4));
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.7))
+    drop-shadow(0 0 18px rgba(56, 189, 248, 0.5))
+    drop-shadow(0 14px 28px rgba(0, 0, 0, 0.45));
 }
 
-.dark-scrollbar::-webkit-scrollbar {
+/* Material Swatches */
+.swatch-glossy {
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.15) 60%),
+              linear-gradient(135deg, #6366f1, #8b5cf6);
+}
+
+.swatch-holographic {
+  background: linear-gradient(135deg, #ff007f, #00f0ff, #ffe600, #a855f7, #00ff88);
+  background-size: 200% 200%;
+  animation: holoShift 4s ease infinite;
+}
+
+.swatch-glitter {
+  background: radial-gradient(circle, #fff 10%, transparent 20%),
+              radial-gradient(circle, #ffd700 15%, transparent 25%),
+              linear-gradient(135deg, #f59e0b, #ec4899);
+  background-size: 8px 8px, 12px 12px, 100% 100%;
+}
+
+.swatch-metallic {
+  background: linear-gradient(135deg, #b45309 0%, #fef08a 40%, #f59e0b 60%, #78350f 100%);
+}
+
+.swatch-matte {
+  background: linear-gradient(135deg, #475569, #334155);
+}
+
+@keyframes holoShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Custom Scrollbars */
+.studio-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-.dark-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+.studio-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.dark-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+.studio-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
   border-radius: 9999px;
 }
 
-.dark-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+.studio-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
 }
 
 @keyframes dropdown {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.97);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;

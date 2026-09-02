@@ -1,6 +1,76 @@
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
+  Sun,
+  Moon,
+  Upload,
+  Download,
+  Copy,
+  Check,
+  RotateCw,
+  Sparkles,
+  Scissors,
+  Layers,
+  Printer,
+  Grid,
+  History,
+  Palette,
+  Heart,
+  Square,
+  Circle,
+  ShieldCheck,
+  Hexagon,
+  Eye,
+  Sliders,
+  Type,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Wand2,
+  RefreshCw,
+  Plus,
+  ArrowRight,
+  Info,
+  CheckCircle2,
+  Disc,
+  Zap,
+  Waves,
+  Box,
+  PenTool,
+  Gamepad2,
+  Paintbrush,
+  SprayCan,
+  Triangle,
+  Droplet,
+  Flame,
+  Award,
+  Crown,
+  Undo2,
+  Redo2,
+  FileCode2,
+  BookOpen,
+  Image as ImageIcon,
+  ChevronsUpDown,
+  Cpu,
+  Bot,
+  ChevronLeft,
+  ChevronUp,
+  Pin,
+  Share2,
+  MoreVertical,
+  Star,
+  Users,
+  Film,
+  FolderUp,
+  LayoutGrid,
+  PanelLeftClose,
+  PanelLeft,
+  X
+} from 'lucide-react';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
+import {
   StickerStyle,
   StickerShape,
   StickerPalette,
@@ -8,9 +78,11 @@ import {
   StickerSettings,
   StickerState,
   CanvasItem,
-  HistoryItem
+  HistoryItem,
+  AiEngine
 } from '../types';
 import { CanvasEditor } from '../components/CanvasEditor';
+import { FlowSidebar } from './components/FlowSidebar';
 import {
   PillButton,
   FieldDropdown,
@@ -23,6 +95,7 @@ import {
   SHAPES_INFO,
   FINISH_INFO,
   PALETTES_INFO,
+  AI_ENGINES_INFO,
   renderStickerCanvas
 } from '../services/stickerStyler';
 import { removeBackground } from '../services/backgroundRemoval';
@@ -30,6 +103,7 @@ import { cropToContent } from '../services/imageProcessing';
 import { PRESET_STICKERS } from './presets';
 
 const DEFAULT_SETTINGS: StickerSettings = {
+  aiEngine: 'nano-banana-pro',
   style: 'pop-art',
   shape: 'die-cut',
   palette: 'default',
@@ -45,7 +119,68 @@ const DEFAULT_SETTINGS: StickerSettings = {
   croppingMode: '1:1',
 };
 
+// Lucide icon mapping for shapes
+const SHAPE_ICONS: Record<StickerShape, React.ReactNode> = {
+  'die-cut': <Scissors className="w-4 h-4" />,
+  'circle': <Circle className="w-4 h-4" />,
+  'square': <Square className="w-4 h-4" />,
+  'badge': <ShieldCheck className="w-4 h-4" />,
+  'heart': <Heart className="w-4 h-4" />,
+  'hexagon': <Hexagon className="w-4 h-4" />
+};
+
+// Lucide icon mapping for styles
+const STYLE_ICONS: Record<StickerStyle, React.ReactNode> = {
+  'minimalist': <Square className="w-3.5 h-3.5" />,
+  'pop-art': <Palette className="w-3.5 h-3.5" />,
+  'kawaii': <Heart className="w-3.5 h-3.5" />,
+  'retro-vinyl': <Disc className="w-3.5 h-3.5" />,
+  'cyberpunk': <Zap className="w-3.5 h-3.5" />,
+  'holographic': <Sparkles className="w-3.5 h-3.5" />,
+  'vaporwave': <Waves className="w-3.5 h-3.5" />,
+  '3d-render': <Box className="w-3.5 h-3.5" />,
+  'ink-sketch': <PenTool className="w-3.5 h-3.5" />,
+  'pixel-art': <Gamepad2 className="w-3.5 h-3.5" />,
+  'watercolor': <Paintbrush className="w-3.5 h-3.5" />,
+  'embroidery': <Scissors className="w-3.5 h-3.5" />,
+  'graffiti': <SprayCan className="w-3.5 h-3.5" />,
+  'origami': <Triangle className="w-3.5 h-3.5" />,
+  'clear-vinyl': <Droplet className="w-3.5 h-3.5" />
+};
+
+// Lucide icon and swatch mapping for finishes
+const FINISH_ICONS: Record<StickerFinish, React.ReactNode> = {
+  'glossy': <Sun className="w-4 h-4 text-amber-500" />,
+  'matte': <Sliders className="w-4 h-4 text-slate-400" />,
+  'glitter': <Sparkles className="w-4 h-4 text-pink-500" />,
+  'holographic-foil': <Wand2 className="w-4 h-4 text-purple-500" />,
+  'metallic': <Crown className="w-4 h-4 text-yellow-500" />
+};
+
 export default function App() {
+  // Theme state: dark / light
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hub_sticker_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'dark';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('hub_sticker_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   const [state, setState] = useState<StickerState>({
     originalImage: PRESET_STICKERS[0].dataUrl,
     originalMime: 'image/svg+xml',
@@ -76,13 +211,192 @@ export default function App() {
 
   const [settings, setSettings] = useState<StickerSettings>(DEFAULT_SETTINGS);
   const [activePreset, setActivePreset] = useState<string>(PRESET_STICKERS[0].id);
-  const [previewBg, setPreviewBg] = useState<'checker' | 'dark' | 'light'>('checker');
+  const [previewBg, setPreviewBg] = useState<'checker' | 'dark' | 'light' | 'desk'>('checker');
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
+  const [copiedNotification, setCopiedNotification] = useState(false);
   const [exportState, setExportState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiDescription, setAiDescription] = useState<string | null>(null);
 
+  // AI Generator Modal state
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiSubjectPrompt, setAiSubjectPrompt] = useState('Gatito astronauta con traje retro y casco espacial');
+  const [aiUseReference, setAiUseReference] = useState(false);
+  const [isAiCreating, setIsAiCreating] = useState(false);
+
+  // Technical Docs Modal state
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+
+  // 3D Tilt effect on sticker preview
+  const [tilt, setTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sheetCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Handle Download Project ZIP (Código y activos de la pegatina)
+  const handleDownloadZip = async () => {
+    try {
+      const zip = new JSZip();
+      zip.file(
+        'README.txt',
+        'HUB STICKERS PRO 2026 - Proyecto de Pegatina\n\nGenerado con Google Flow & Hub Stickers Pro.\nDiseñado para corte troquelado y producción de vinilos en alta fidelidad.'
+      );
+      zip.file(
+        'configuracion_pegatina.json',
+        JSON.stringify(
+          {
+            version: '2026.1',
+            motor: settings.aiEngine,
+            estilo: settings.style,
+            forma: settings.shape,
+            acabado: settings.finish,
+            paleta: settings.palette,
+            grosorBorde: settings.borderThickness,
+            fondo: settings.backgroundColor,
+            encuadre: settings.croppingMode,
+            textoLema: settings.captionText,
+            sujetoPrompt: aiSubjectPrompt
+          },
+          null,
+          2
+        )
+      );
+
+      if (state.generatedSticker) {
+        const base64Data = state.generatedSticker.split(',')[1];
+        if (base64Data) {
+          zip.file('pegatina_alta_resolucion.png', base64Data, { base64: true });
+        }
+      }
+      if (state.cutoutImage) {
+        const base64Cutout = state.cutoutImage.split(',')[1];
+        if (base64Cutout) {
+          zip.file('silueta_recorte_alfa.png', base64Cutout, { base64: true });
+        }
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      saveAs(content, `hub-stickers-pro-${settings.style}-${Date.now()}.zip`);
+      confetti({ particleCount: 50, spread: 60 });
+    } catch (err) {
+      console.error('Error al exportar ZIP:', err);
+    }
+  };
+
+  // Main Generator Button Handler (EL BOTÓN MÁS IMPORTANTE)
+  const handleGenerateMainSticker = async () => {
+    if (isAiCreating || state.isLoading) return;
+
+    if (aiSubjectPrompt && aiSubjectPrompt.trim()) {
+      await handleGenerateAiSticker();
+    } else if (state.cutoutImage || state.originalImage) {
+      setState((prev) => ({ ...prev, isLoading: true, status: 'Renderizando pegatina con acabados físicos...' }));
+      try {
+        const sourceImage = settings.useSmartCutout && state.cutoutImage
+          ? state.cutoutImage
+          : (state.originalImage || state.cutoutImage);
+        if (sourceImage) {
+          const rendered = await renderStickerCanvas(sourceImage, settings, 1024);
+          setState((prev) => ({ ...prev, generatedSticker: rendered, isLoading: false, status: '' }));
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+        }
+      } catch (e: any) {
+        setState((prev) => ({ ...prev, isLoading: false, status: '', error: e?.message }));
+      }
+    } else {
+      setAiSubjectPrompt('Gatito astronauta con traje retro y casco espacial');
+      await handleGenerateAiSticker();
+    }
+  };
+
+  // Helper to push snapshot to Undo stack
+  const saveSnapshot = (customSettings?: StickerSettings, customImage?: string | null) => {
+    const snap: HistoryItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      image: customImage || state.cutoutImage || state.originalImage,
+      settings: customSettings ? { ...customSettings } : { ...settings },
+    };
+    setState((prev) => ({
+      ...prev,
+      undoStack: [snap, ...prev.undoStack.slice(0, 19)],
+      redoStack: [],
+    }));
+  };
+
+  const handleUndo = () => {
+    if (state.undoStack.length === 0) return;
+    const [lastSnap, ...restUndo] = state.undoStack;
+    const currentSnap: HistoryItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      image: state.cutoutImage || state.originalImage,
+      settings: { ...settings },
+    };
+
+    setSettings(lastSnap.settings);
+    if (lastSnap.image) {
+      setState((prev) => ({
+        ...prev,
+        cutoutImage: lastSnap.image,
+        originalImage: lastSnap.image,
+        undoStack: restUndo,
+        redoStack: [currentSnap, ...prev.redoStack],
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        undoStack: restUndo,
+        redoStack: [currentSnap, ...prev.redoStack],
+      }));
+    }
+  };
+
+  const handleRedo = () => {
+    if (state.redoStack.length === 0) return;
+    const [nextSnap, ...restRedo] = state.redoStack;
+    const currentSnap: HistoryItem = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      image: state.cutoutImage || state.originalImage,
+      settings: { ...settings },
+    };
+
+    setSettings(nextSnap.settings);
+    if (nextSnap.image) {
+      setState((prev) => ({
+        ...prev,
+        cutoutImage: nextSnap.image,
+        originalImage: nextSnap.image,
+        redoStack: restRedo,
+        undoStack: [currentSnap, ...prev.undoStack],
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        redoStack: restRedo,
+        undoStack: [currentSnap, ...prev.undoStack],
+      }));
+    }
+  };
+
+  // Keyboard shortcut for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.undoStack, state.redoStack, settings]);
 
   // Generate current sticker whenever settings or cutout image changes
   useEffect(() => {
@@ -105,7 +419,6 @@ export default function App() {
               settings: { ...settings },
             };
 
-            // Update first canvas item if empty
             const updatedCanvas = prev.canvasItems.map((item, idx) =>
               idx === 0 && !item.url ? { ...item, url: rendered } : item
             );
@@ -114,7 +427,7 @@ export default function App() {
               ...prev,
               generatedSticker: rendered,
               canvasItems: updatedCanvas,
-              history: [newHistoryItem, ...prev.history.slice(0, 19)],
+              history: [newHistoryItem, ...prev.history.filter((h) => h.image !== rendered).slice(0, 23)],
             };
           });
         }
@@ -150,15 +463,18 @@ export default function App() {
             [styleKey]: rendered,
           },
         }));
-      } catch (err) {
-        console.warn(`Error generating sampler for ${styleKey}`, err);
+      } catch (e) {
+        console.error('Sampler render error:', e);
       }
     });
-  }, [state.viewMode, state.cutoutImage, state.originalImage, settings.shape, settings.palette, settings.finish]);
+  }, [state.viewMode, state.cutoutImage, state.originalImage, settings.shape, settings.finish, settings.palette, settings.borderThickness]);
 
-  // File upload handler
-  const handleFileUpload = (file: File) => {
+  // Handle local image file upload
+  const handleFileUpload = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    saveSnapshot();
+    setState((prev) => ({ ...prev, isLoading: true, status: 'Cargando imagen...', error: null }));
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
@@ -166,26 +482,23 @@ export default function App() {
         ...prev,
         originalImage: dataUrl,
         originalMime: file.type,
-        isLoading: true,
-        status: 'Extrayendo sujeto inteligente...',
+        status: 'Detectando silueta con Xenova/modnet...',
       }));
       setActivePreset('');
 
       try {
-        // Smart cutout + crop
         const cutout = await removeBackground(dataUrl, (p: number) => {
-          setState((prev) => ({ ...prev, status: `Procesando silueta: ${p}%` }));
+          setState((prev) => ({ ...prev, status: `Procesando silueta IA: ${p}%` }));
         });
         const cropped = await cropToContent(cutout);
-
         setState((prev) => ({
           ...prev,
           cutoutImage: cropped,
           isLoading: false,
           status: '',
         }));
-      } catch (err: any) {
-        console.error('Cutout error:', err);
+        confetti({ particleCount: 40, spread: 50 });
+      } catch {
         setState((prev) => ({
           ...prev,
           cutoutImage: dataUrl,
@@ -200,6 +513,7 @@ export default function App() {
   const handleSelectPreset = async (presetId: string) => {
     const preset = PRESET_STICKERS.find((p) => p.id === presetId);
     if (!preset) return;
+    saveSnapshot();
     setActivePreset(preset.id);
     setState((prev) => ({
       ...prev,
@@ -214,6 +528,7 @@ export default function App() {
   };
 
   const handleSmartCutoutToggle = async () => {
+    saveSnapshot();
     const nextVal = !settings.useSmartCutout;
     setSettings((prev) => ({ ...prev, useSmartCutout: nextVal }));
 
@@ -229,7 +544,62 @@ export default function App() {
     }
   };
 
-  // Trigger download of the single sticker
+  // AI Sticker Generation endpoint handler
+  const handleGenerateAiSticker = async () => {
+    if (!aiSubjectPrompt.trim()) return;
+    setIsAiCreating(true);
+    saveSnapshot();
+    const engineLabel = AI_ENGINES_INFO[settings.aiEngine]?.label || 'Nano Banana Pro';
+    setState((prev) => ({ ...prev, isLoading: true, status: `Generando pegatina con IA (${engineLabel})...` }));
+
+    try {
+      const referenceData = aiUseReference ? (state.cutoutImage || state.originalImage) : null;
+      const res = await fetch('/api/ai/generate-sticker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: aiSubjectPrompt,
+          style: settings.style,
+          shape: settings.shape,
+          finish: settings.finish,
+          borderThickness: settings.borderThickness,
+          referenceImage: referenceData,
+          aiEngine: settings.aiEngine,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.imageUrl) {
+        setState((prev) => ({ ...prev, status: 'Aislando silueta transparente...' }));
+        const cutout = await removeBackground(data.imageUrl);
+        const cropped = await cropToContent(cutout);
+
+        setState((prev) => ({
+          ...prev,
+          originalImage: data.imageUrl,
+          cutoutImage: cropped,
+          isLoading: false,
+          status: '',
+        }));
+        setIsAiModalOpen(false);
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } else {
+        throw new Error(data.error || 'Error al generar la imagen');
+      }
+    } catch (err: any) {
+      console.error('AI generate sticker error:', err);
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        status: '',
+        error: err.message || 'No se pudo generar el sticker con IA.',
+      }));
+    } finally {
+      setIsAiCreating(false);
+    }
+  };
+
+  // Trigger download of single sticker (PNG)
   const handleDownloadSingle = () => {
     if (!state.generatedSticker) return;
     const a = document.createElement('a');
@@ -237,6 +607,66 @@ export default function App() {
     a.download = `hub-sticker-${settings.style}-${Date.now()}.png`;
     a.click();
     confetti({ particleCount: 60, spread: 60, origin: { y: 0.8 } });
+  };
+
+  // Download Technical Documentation
+  const handleDownloadDocs = () => {
+    const docContent = `# DOCUMENTACIÓN TÉCNICA: HUB STICKERS PRO 2026
+
+## 1. DESCRIPCIÓN GENERAL
+HUB STICKERS PRO 2026 es una aplicación de vanguardia diseñada para la creación, edición y diseño de pegatinas (stickers) personalizadas utilizando Inteligencia Artificial generativa y procesamiento de imágenes local.
+
+## 2. ARQUITECTURA DEL SISTEMA
+La herramienta está construida como una Flow Tool, ejecutándose en un entorno sandbox seguro (iframe) utilizando:
+- **Framework:** React 19 con TypeScript.
+- **Estilos:** Tailwind CSS v4.
+- **Interacción:** Framer Motion (motion/react) para el lienzo de diseño.
+- **IA Generativa:** Google Flow SDK para modelos de imagen (Nano Banana / Gemini).
+- **IA Local:** Transformers.js para eliminación de fondo mediante el modelo Xenova/modnet.
+
+## 3. PROCESOS CLAVE Y FLUJO DE DATOS
+### A. Adquisición de Imagen (Input)
+- Selección de archivos desde galería o cámara, y generación de sujeto mediante prompts de IA.
+### B. Segmentación y Recorte (Smart Cutout)
+- Xenova/modnet ejecutado via WebWorker/WebGPU para generar máscaras alfa de alta fidelidad.
+### C. Generación con IA (Inpainting & Style Transfer)
+- Construcción dinámica de prompts: Sujeto + Modificadores de Estilo + Parámetros Físicos + Restricciones Negativas.
+### D. Optimización de Espacio (Tight Crop)
+- Algoritmo \`cropToContent\` para eliminar márgenes vacíos y centrar la silueta.
+### E. Diseño y Composición (Canvas Editor)
+- Multi-capa con arrastre, rotación, escalado y gestión de profundidad Z-index.
+
+## 4. INTEGRACIÓN CON FLOW SDK (API)
+1. **Flow.media.select:** Selección de archivos.
+2. **Flow.generate.image:** Invocación de modelos generativos Nano Banana / Gemini.
+3. **Flow.upload:** Registro temporal de imágenes procesadas como referencia visual.
+4. **Flow.download:** Exportación final de archivos (Stickers HD, Planillas A4, Composiciones, Código y Documentación).
+`;
+    const blob = new Blob([docContent], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'HUB_STICKERS_PRO_2026_DOCUMENTATION.md';
+    a.click();
+    URL.revokeObjectURL(url);
+    confetti({ particleCount: 40, spread: 50 });
+  };
+
+  // Copy sticker image to clipboard
+  const handleCopyImage = async () => {
+    if (!state.generatedSticker) return;
+    try {
+      const res = await fetch(state.generatedSticker);
+      const blob = await res.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ]);
+      setCopiedNotification(true);
+      setTimeout(() => setCopiedNotification(false), 2500);
+    } catch {
+      setCopiedNotification(true);
+      setTimeout(() => setCopiedNotification(false), 2000);
+    }
   };
 
   // Add current sticker to Canvas Editor
@@ -268,16 +698,14 @@ export default function App() {
       canvas.height = size;
       const ctx = canvas.getContext('2d')!;
 
-      // Draw background
       if (previewBg === 'dark') {
-        ctx.fillStyle = '#121318';
+        ctx.fillStyle = '#0f1016';
         ctx.fillRect(0, 0, size, size);
       } else if (previewBg === 'light') {
-        ctx.fillStyle = '#f8fafc';
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, size, size);
       }
 
-      // Draw all items
       for (const item of state.canvasItems) {
         if (!item.url) continue;
         await new Promise((resolve) => {
@@ -333,25 +761,24 @@ export default function App() {
     if (!ctx) return;
 
     const sheetW = 1240;
-    const sheetH = 1754; // A4 ratio
+    const sheetH = 1754;
     canvas.width = sheetW;
     canvas.height = sheetH;
 
-    // White paper sheet background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, sheetW, sheetH);
 
-    // Sheet Header
+    // Header
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 36px "Space Grotesk", sans-serif';
-    ctx.fillText('HUB STICKERS PRO 2026 — STICKER PACK', 70, 90);
+    ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('HUB STICKERS PRO 2026 — PACK DE IMPRESIÓN', 70, 90);
 
     ctx.fillStyle = '#64748b';
     ctx.font = '600 20px "Plus Jakarta Sans", sans-serif';
     ctx.fillText(`Estilo: ${STYLES_INFO[settings.style].label} • Acabado: ${FINISH_INFO[settings.finish].label}`, 70, 130);
 
-    // Grid lines for cut boundaries
-    ctx.strokeStyle = '#e2e8f0';
+    // Grid cut bounds
+    ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 2;
     ctx.setLineDash([8, 8]);
     ctx.strokeRect(50, 160, sheetW - 100, sheetH - 220);
@@ -360,12 +787,13 @@ export default function App() {
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const density = settings.sheetDensity; // 4, 6, 9, 12
+      const density = settings.sheetDensity;
       let cols = 2, rows = 3;
       if (density === 4) { cols = 2; rows = 2; }
       else if (density === 6) { cols = 2; rows = 3; }
       else if (density === 9) { cols = 3; rows = 3; }
       else if (density === 12) { cols = 3; rows = 4; }
+      else if (density === 16) { cols = 4; rows = 4; }
 
       const gridStartX = 70;
       const gridStartY = 190;
@@ -382,22 +810,18 @@ export default function App() {
           const cy = gridStartY + r * cellH + cellH / 2;
 
           ctx.save();
-          // Subtle cut marks
-          ctx.strokeStyle = '#cbd5e1';
+          ctx.strokeStyle = '#e2e8f0';
           ctx.lineWidth = 1;
           ctx.strokeRect(cx - cellW * 0.46, cy - cellH * 0.46, cellW * 0.92, cellH * 0.92);
-
-          // Draw sticker
           ctx.drawImage(img, cx - stickerSize / 2, cy - stickerSize / 2, stickerSize, stickerSize);
           ctx.restore();
         }
       }
 
-      // Footer
       ctx.fillStyle = '#94a3b8';
       ctx.font = '16px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`Print ready • 300 DPI layout • Generated on Hub Stickers Pro 2026`, sheetW / 2, sheetH - 30);
+      ctx.fillText(`Print ready • 300 DPI layout • Hub Stickers Pro Studio Suite`, sheetW / 2, sheetH - 30);
     };
     img.src = state.generatedSticker;
   }, [state.viewMode, state.generatedSticker, settings.sheetDensity, settings.style, settings.finish]);
@@ -411,7 +835,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: settings.customSubject || STYLES_INFO[settings.style].label,
+          prompt: settings.captionText || STYLES_INFO[settings.style].label,
           style: settings.style,
           shape: settings.shape,
         }),
@@ -420,610 +844,833 @@ export default function App() {
       if (data.text) {
         setAiDescription(data.text);
       } else {
-        setAiDescription('Gemini: Pegatina optimizada con contorno blanco troquelado y acabado ' + settings.finish);
+        setAiDescription('Pegatina estilizada con troquelado die-cut de alta definición y acabado ' + FINISH_INFO[settings.finish].label);
       }
     } catch {
-      setAiDescription('Gemini: Pegatina estilizada en alta definición con borde die-cut perfecto.');
+      setAiDescription('Pegatina profesional con contorno blanco vinílico y textura de alta calidad.');
     } finally {
       setAiGenerating(false);
     }
   };
 
+  // 3D Tilt calculation
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: x * 22, y: -y * 22 });
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setTilt({ x: 0, y: 0 });
+  };
+
   const navTabs = [
-    { id: 'single', label: 'Estudio Individual', icon: 'auto_fix_high' },
-    { id: 'sampler', label: 'Muestrario de Estilos', icon: 'grid_view' },
-    { id: 'sheet', label: 'Hoja de Pegatinas', icon: 'print' },
-    { id: 'canvas', label: 'Lienzo Libre', icon: 'layers' },
-    { id: 'history', label: 'Historial', icon: 'history' },
+    { id: 'single', label: 'Estudio 1-a-1', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'sampler', label: 'Muestrario de Estilos', icon: <Grid className="w-4 h-4" /> },
+    { id: 'sheet', label: 'Hoja de Impresión A4', icon: <Printer className="w-4 h-4" /> },
+    { id: 'canvas', label: 'Lienzo Libre', icon: <Layers className="w-4 h-4" /> },
+    { id: 'history', label: 'Historial', icon: <History className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0d0e12] text-slate-100 selection:bg-indigo-500 selection:text-white">
-      {/* Top Header */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#12131a]/85 backdrop-blur-xl px-4 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-col min-h-screen bg-[#0b0c14] text-slate-100 selection:bg-indigo-600 selection:text-white font-sans antialiased overflow-hidden">
+      {/* App Header */}
+      <header className="h-14 shrink-0 border-b border-white/10 bg-[#10121d] px-4 sm:px-5 flex items-center justify-between gap-3 z-30 shadow-xs">
+        {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-lg shadow-indigo-500/25">
-            <div className="w-full h-full bg-[#0d0e12] rounded-[14px] flex items-center justify-center">
-              <span className="material-symbols-outlined text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 to-pink-400 text-[22px]">
-                token
-              </span>
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 p-0.5 shadow-sm shadow-indigo-500/25 flex items-center justify-center">
+            <div className="w-full h-full bg-[#10121d] rounded-[10px] flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-indigo-400" />
             </div>
           </div>
-          <div>
+          <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg lg:text-xl tracking-tight text-white font-['Space_Grotesk']">
+              <h1 className="text-sm font-black tracking-wider text-white uppercase">
                 HUB STICKERS PRO
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                2026
+              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                2026 PRO
               </span>
             </div>
-            <p className="text-[12px] text-slate-400 font-medium hidden sm:block">
-              Generador Profesional de Pegatinas, Troquelado Inteligente y Estudio de Impresión
-            </p>
           </div>
         </div>
 
-        {/* View Mode Navigation Switcher */}
-        <div className="flex items-center bg-white/5 p-1 rounded-2xl border border-white/10 overflow-x-auto max-w-full">
+        {/* View Mode Navigation Tabs */}
+        <nav className="hidden md:flex items-center bg-[#171928] p-1 rounded-xl border border-white/10 shadow-inner">
           {navTabs.map((tab) => {
-            const isActive = state.viewMode === tab.id;
+            const isSelected = state.viewMode === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
                 onClick={() => setState((prev) => ({ ...prev, viewMode: tab.id as any }))}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <span className="material-symbols-outlined text-[17px]">{tab.icon}</span>
+                {tab.icon}
                 <span>{tab.label}</span>
               </button>
             );
           })}
+        </nav>
+
+        {/* Header Right Actions */}
+        <div className="flex items-center gap-2">
+          {/* AI Generator Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsAiModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-600/25 active:scale-95 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Generar con IA</span>
+          </button>
+
+          {/* Upload Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition-all active:scale-95 cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Subir Foto</span>
+          </button>
+
+          {/* Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-400" />
+            ) : (
+              <Moon className="w-4 h-4 text-indigo-400" />
+            )}
+          </button>
+
+          {/* Quick Guide / Help */}
+          <button
+            type="button"
+            onClick={() => setIsDocsModalOpen(true)}
+            title="Guía y Atajos"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+          >
+            <BookOpen className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* Main Studio Viewport */}
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        {/* Loading Overlay */}
-        {state.isLoading && (
-          <div className="absolute inset-0 z-50 bg-[#0d0e12]/80 backdrop-blur-md flex flex-col items-center justify-center gap-3">
-            <div className="w-12 h-12 rounded-full border-4 border-indigo-500/30 border-t-indigo-500 animate-spin" />
-            <p className="text-sm font-bold text-indigo-300 tracking-wide uppercase">{state.status}</p>
-          </div>
-        )}
+      {/* Main Viewport Container */}
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
+          className="hidden"
+        />
 
-        {/* 1. SINGLE VIEW (PRIMARY STUDIO) */}
         {state.viewMode === 'single' && (
-          <>
-            {/* Left Control Panel */}
-            <aside className="w-full lg:w-[420px] xl:w-[460px] border-b lg:border-b-0 lg:border-r border-white/10 bg-[#121318]/90 flex flex-col h-[50vh] lg:h-[calc(100vh-65px)] overflow-y-auto dark-scrollbar p-5 gap-6">
-              {/* Presets & Upload Section */}
-              <div className="flex flex-col gap-3">
-                <SectionLabel color="#818cf8">1. Imagen de Origen</SectionLabel>
-                
-                {/* Upload Button */}
-                <div className="flex gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) handleFileUpload(e.target.files[0]);
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-indigo-600/30 hover:scale-[1.01] active:scale-[0.99]"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">upload_file</span>
-                    Subir Tu Foto / Imagen
-                  </button>
-                </div>
-
-                {/* Preset Chips */}
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                    O prueba una muestra rápida:
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {PRESET_STICKERS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleSelectPreset(preset.id)}
-                        className={`flex items-center gap-2 p-2 rounded-xl border text-left transition-all ${
-                          activePreset === preset.id
-                            ? 'bg-indigo-500/20 border-indigo-500/50 text-white shadow-inner'
-                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
-                        }`}
-                      >
-                        <img src={preset.dataUrl} alt={preset.name} className="w-7 h-7 object-contain rounded-lg" />
-                        <span className="text-[11px] font-bold truncate">{preset.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Smart Cutout Switch */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="flex items-center gap-2.5">
-                    <span className="material-symbols-outlined text-indigo-400 text-[20px]">content_cut</span>
-                    <div>
-                      <p className="text-xs font-bold text-white uppercase tracking-wider">Troquelado Inteligente</p>
-                      <p className="text-[11px] text-slate-400">Elimina el fondo y aísla la silueta</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSmartCutoutToggle}
-                    className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${
-                      settings.useSmartCutout ? 'bg-indigo-500' : 'bg-slate-700'
-                    }`}
-                  >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-white transition-transform ${
-                        settings.useSmartCutout ? 'translate-x-6' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Styles Section (15 Styles) */}
-              <div className="flex flex-col gap-2.5">
-                <SectionLabel color="#818cf8">2. Estilo Artístico (15 Opciones)</SectionLabel>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(STYLES_INFO) as StickerStyle[]).map((styleKey) => {
-                    const info = STYLES_INFO[styleKey];
-                    const isSelected = settings.style === styleKey;
-                    return (
-                      <button
-                        key={styleKey}
-                        type="button"
-                        onClick={() => setSettings((prev) => ({ ...prev, style: styleKey }))}
-                        className={`flex flex-col items-center justify-center p-2.5 rounded-2xl border text-center transition-all ${
-                          isSelected
-                            ? 'bg-indigo-500/20 border-indigo-500 text-white shadow-md shadow-indigo-500/20 scale-[1.02]'
-                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
-                        }`}
-                      >
-                        <span
-                          className="material-symbols-outlined text-[20px] mb-1"
-                          style={{ color: isSelected ? info.color : undefined }}
-                        >
-                          {info.icon}
-                        </span>
-                        <span className="text-[11px] font-bold tracking-tight">{info.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Shapes & Cutout Contours */}
-              <div className="flex flex-col gap-2.5">
-                <SectionLabel color="#818cf8">3. Forma y Silueta</SectionLabel>
-                <div className="grid grid-cols-3 gap-2">
-                  {(Object.keys(SHAPES_INFO) as StickerShape[]).map((shapeKey) => {
-                    const info = SHAPES_INFO[shapeKey];
-                    const isSelected = settings.shape === shapeKey;
-                    return (
-                      <button
-                        key={shapeKey}
-                        type="button"
-                        onClick={() => setSettings((prev) => ({ ...prev, shape: shapeKey }))}
-                        className={`flex items-center gap-1.5 p-2 rounded-xl border transition-all text-left ${
-                          isSelected
-                            ? 'bg-purple-500/20 border-purple-500 text-white'
-                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[16px] text-purple-400">{info.icon}</span>
-                        <span className="text-[11px] font-bold truncate">{info.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Finishes & Materials */}
-              <div className="flex flex-col gap-2.5">
-                <SectionLabel color="#818cf8">4. Acabado y Material</SectionLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(FINISH_INFO) as StickerFinish[]).map((finishKey) => {
-                    const info = FINISH_INFO[finishKey];
-                    const isSelected = settings.finish === finishKey;
-                    return (
-                      <button
-                        key={finishKey}
-                        type="button"
-                        onClick={() => setSettings((prev) => ({ ...prev, finish: finishKey }))}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-left transition-all ${
-                          isSelected
-                            ? 'bg-amber-500/20 border-amber-500 text-white shadow-sm'
-                            : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-[18px] text-amber-400">{info.icon}</span>
-                        <div>
-                          <p className="text-[11px] font-bold">{info.label}</p>
-                          <p className="text-[9px] text-slate-400 truncate">{info.desc}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Palette & Border Settings */}
-              <div className="flex flex-col gap-3">
-                <SectionLabel color="#818cf8">5. Paleta y Borde Troquelado</SectionLabel>
-                
-                {/* Border Thickness */}
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">
-                    Grosor del Borde Blanco
-                  </p>
-                  <SegmentedToggle
-                    value={String(settings.borderThickness)}
-                    onChange={(val) => setSettings((prev) => ({ ...prev, borderThickness: Number(val) as any }))}
-                    items={[
-                      { value: '0', label: 'Sin Borde' },
-                      { value: '1', label: 'Estándar (16px)' },
-                      { value: '2', label: 'Grueso (28px)' },
-                    ]}
-                    accentColor="#818cf8"
-                  />
-                </div>
-
-                {/* Palette Dropdown */}
-                <FieldDropdown
-                  label="Paleta de Colores"
-                  value={settings.palette}
-                  options={Object.keys(PALETTES_INFO)}
-                  onChange={(val) => setSettings((prev) => ({ ...prev, palette: val as StickerPalette }))}
-                  accentColor="#818cf8"
-                  renderOption={(opt) => {
-                    const info = PALETTES_INFO[opt as StickerPalette];
-                    return (
-                      <div className="flex items-center justify-between w-full">
-                        <span>{info?.label || opt}</span>
-                        <div className="flex items-center gap-1">
-                          {info?.colors.map((c: string, i: number) => (
-                            <span key={i} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c }} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }}
-                />
-
-                {/* Custom Caption Banner */}
-                <TextInput
-                  label="Texto o Lema en la Pegatina"
-                  value={settings.captionText}
-                  onChange={(val) => setSettings((prev) => ({ ...prev, captionText: val }))}
-                  placeholder="Ej. RETRO VIBES, EDICIÓN LIMITADA..."
-                  accentColor="#818cf8"
-                />
-
-                {/* Gemini AI Styler Prompt */}
-                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-purple-950/30 to-slate-900 border border-indigo-500/20 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-indigo-400 text-[18px]">auto_awesome</span>
-                      <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">Asistente Gemini</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleEnhanceWithAI}
-                      disabled={aiGenerating}
-                      className="px-3 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white text-[10px] font-extrabold uppercase tracking-wider transition-all disabled:opacity-50"
-                    >
-                      {aiGenerating ? 'Analizando...' : 'Describir Concepto'}
-                    </button>
-                  </div>
-                  {aiDescription && (
-                    <p className="text-[12px] text-indigo-200/90 leading-relaxed bg-black/30 p-2.5 rounded-xl border border-indigo-500/20">
-                      {aiDescription}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </aside>
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            {/* Google Flow Styled Left Control Sidebar */}
+            <FlowSidebar
+              settings={settings}
+              setSettings={setSettings}
+              saveSnapshot={saveSnapshot}
+              aiSubjectPrompt={aiSubjectPrompt}
+              setAiSubjectPrompt={setAiSubjectPrompt}
+              viewMode={state.viewMode}
+              setViewMode={(mode) => setState((prev) => ({ ...prev, viewMode: mode }))}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              canUndo={state.undoStack.length > 0}
+              canRedo={state.redoStack.length > 0}
+              onUploadClick={() => fileInputRef.current?.click()}
+              onDownloadZip={handleDownloadZip}
+              onGenerateSticker={handleGenerateMainSticker}
+              isGenerating={isAiCreating || state.isLoading}
+            />
 
             {/* Center Studio Live Viewport */}
-            <section className="flex-1 flex flex-col items-center justify-between p-4 lg:p-8 bg-[#0c0d12] relative overflow-hidden">
-              {/* Viewport Top Bar */}
-              <div className="w-full max-w-4xl flex items-center justify-between gap-4 z-10">
+            <section className="flex-1 flex flex-col items-center justify-between p-4 lg:p-6 bg-slate-100 dark:bg-[#0b0c12] relative overflow-hidden">
+              {/* Stage Top Bar */}
+              <div className="w-full max-w-4xl flex flex-wrap items-center justify-between gap-3 z-10">
+                {/* Backdrop Switcher */}
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-                    {(['checker', 'dark', 'light'] as const).map((bg) => (
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                    Fondo:
+                  </span>
+                  <div className="flex bg-white dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+                    {(['checker', 'dark', 'light', 'desk'] as const).map((bg) => (
                       <button
                         key={bg}
                         type="button"
                         onClick={() => setPreviewBg(bg)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                           previewBg === bg
-                            ? 'bg-white/15 text-white shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
-                        {bg === 'checker' ? 'Cuadros' : bg === 'dark' ? 'Oscuro' : 'Claro'}
+                        {bg === 'checker' ? 'Damero' : bg === 'dark' ? 'Oscuro' : bg === 'light' ? 'Claro' : 'Madera'}
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Zoom Controls */}
+                <div className="flex items-center gap-1.5 bg-white dark:bg-white/5 px-2 py-1 rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((prev) => Math.max(50, prev - 15))}
+                    title="Alejar"
+                    className="p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-bold w-12 text-center text-slate-700 dark:text-slate-300">
+                    {zoomLevel}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((prev) => Math.min(180, prev + 15))}
+                    title="Acercar"
+                    className="p-1 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(100)}
+                    title="Tamaño 100%"
+                    className="px-1.5 py-0.5 text-[10px] font-black uppercase rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
+                  >
+                    100%
+                  </button>
+                </div>
+
+                {/* Specs Badge */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>1024 × 1024 px • 300 DPI • PNG Alpha</span>
+                </div>
+              </div>
+
+              {/* Main Interactive Sticker Stage */}
+              <div
+                className={`relative flex-1 w-full max-w-4xl min-h-[420px] my-3 rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl flex items-center justify-center transition-all duration-300 ${
+                  previewBg === 'checker'
+                    ? 'checkerboard'
+                    : previewBg === 'dark'
+                    ? 'bg-[#0f1016]'
+                    : previewBg === 'light'
+                    ? 'bg-[#f8fafc]'
+                    : 'bg-amber-950/20'
+                }`}
+                onMouseMove={handleMouseMove}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={handleMouseLeave}
+              >
+                {state.isLoading && (
+                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-3 text-white">
+                    <div className="w-10 h-10 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm font-extrabold">{state.status || 'Renderizando Pegatina...'}</p>
+                  </div>
+                )}
+
+                {state.generatedSticker ? (
+                  <div
+                    className="relative transition-transform duration-100 ease-out select-none cursor-grab active:cursor-grabbing"
+                    style={{
+                      transform: `scale(${zoomLevel / 100}) perspective(900px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg)`,
+                      transformStyle: 'preserve-3d',
+                    }}
+                  >
+                    <img
+                      src={state.generatedSticker}
+                      alt="Pegatina Renderizada"
+                      className={`max-w-[340px] md:max-w-[420px] max-h-[420px] object-contain select-none transition-all ${
+                        settings.borderThickness > 1 ? 'drop-shadow-sticker-thick' : 'drop-shadow-sticker'
+                      }`}
+                      draggable={false}
+                    />
+
+                    {/* Realistic Holographic Sheen on hover */}
+                    {isHovered && settings.finish === 'holographic-foil' && (
+                      <div className="absolute inset-0 pointer-events-none rounded-3xl swatch-holographic opacity-20 mix-blend-color-dodge transition-opacity" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-slate-400">
+                    <Sparkles className="w-10 h-10 animate-pulse text-indigo-400" />
+                    <p className="text-sm font-bold">Generando vista previa...</p>
+                  </div>
+                )}
+
+                {/* Floating HUD info */}
+                <div className="absolute bottom-3 left-4 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 dark:bg-black/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/10 shadow-lg">
+                  <span className="text-indigo-400 font-black uppercase">
+                    {STYLES_INFO[settings.style].label}
+                  </span>
+                  <span>•</span>
+                  <span>{FINISH_INFO[settings.finish].label}</span>
+                  <span>•</span>
+                  <span>{settings.shape.toUpperCase()}</span>
+                </div>
+              </div>
+
+              {/* Stage Bottom Action Bar */}
+              <div className="w-full max-w-4xl flex flex-wrap items-center justify-between gap-3 z-10 pt-1">
+                <div className="flex items-center gap-2">
+                  <PillButton
+                    variant="outline"
+                    icon={<Layers className="w-4 h-4 text-indigo-500" />}
+                    onClick={handleAddToCanvas}
+                  >
+                    Añadir al Lienzo Libre
+                  </PillButton>
+
+                  <PillButton
+                    variant="outline"
+                    icon={<Printer className="w-4 h-4 text-purple-500" />}
+                    onClick={() => setState((prev) => ({ ...prev, viewMode: 'sheet' }))}
+                  >
+                    Crear Hoja A4
+                  </PillButton>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <PillButton
                     variant="outline"
-                    icon={<span className="material-symbols-outlined text-[18px]">layers</span>}
-                    onClick={handleAddToCanvas}
-                    className="w-auto px-4"
+                    icon={<Copy className="w-4 h-4" />}
+                    onClick={handleCopyImage}
                   >
-                    Añadir al Lienzo
+                    {copiedNotification ? '¡Copiado!' : 'Copiar'}
                   </PillButton>
+
                   <PillButton
                     variant="solid"
-                    icon={<span className="material-symbols-outlined text-[18px]">download</span>}
+                    icon={<Download className="w-4 h-4" />}
                     onClick={handleDownloadSingle}
-                    className="w-auto px-6 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25"
+                    className="px-5 shadow-lg shadow-indigo-500/25"
                   >
                     Descargar PNG HD
                   </PillButton>
                 </div>
               </div>
-
-              {/* Main Sticker Preview Stage */}
-              <div className="flex-1 w-full max-w-3xl flex items-center justify-center p-4">
-                <div
-                  className={`relative w-full max-w-[520px] aspect-square rounded-[36px] overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center p-8 transition-colors duration-300 ${
-                    previewBg === 'checker'
-                      ? 'checkerboard'
-                      : previewBg === 'dark'
-                      ? 'bg-[#15161e]'
-                      : 'bg-[#f8fafc]'
-                  }`}
-                >
-                  {state.generatedSticker ? (
-                    <div className="relative group cursor-pointer" onClick={handleDownloadSingle}>
-                      <img
-                        src={state.generatedSticker}
-                        alt="Sticker Generado"
-                        className={`max-w-full max-h-[420px] object-contain select-none transition-transform duration-300 group-hover:scale-105 ${
-                          settings.finish === 'holographic-foil' ? 'drop-shadow-holographic' : 'drop-shadow-sticker-thick'
-                        }`}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-3xl backdrop-blur-xs">
-                        <span className="px-4 py-2 rounded-full bg-white/90 text-slate-900 font-extrabold text-xs uppercase tracking-wider shadow-lg flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[18px]">download</span>
-                          Descargar Sticker
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-3 text-slate-500">
-                      <span className="material-symbols-outlined text-6xl animate-pulse">token</span>
-                      <p className="text-xs font-bold uppercase tracking-widest">Generando Pegatina...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Info Bar at Bottom */}
-              <div className="w-full max-w-4xl flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5">
-                <div className="flex items-center gap-4">
-                  <span>🎨 Estilo: <strong className="text-slate-200">{STYLES_INFO[settings.style].label}</strong></span>
-                  <span>✂️ Forma: <strong className="text-slate-200">{SHAPES_INFO[settings.shape].label}</strong></span>
-                  <span>✨ Acabado: <strong className="text-slate-200">{FINISH_INFO[settings.finish].label}</strong></span>
-                </div>
-                <div className="text-slate-500 hidden sm:block">
-                  PNG transparente de alta resolución (1024x1024)
-                </div>
-              </div>
             </section>
-          </>
+          </div>
         )}
 
-        {/* 2. SAMPLER VIEW (15 STYLES MATRIX) */}
+        {/* 2. Sampler Matrix View (15 Styles) */}
         {state.viewMode === 'sampler' && (
-          <section className="flex-1 p-6 lg:p-10 overflow-y-auto dark-scrollbar flex flex-col gap-6 max-w-7xl mx-auto w-full">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex-1 p-4 lg:p-8 overflow-y-auto studio-scrollbar max-w-7xl mx-auto w-full">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-extrabold font-['Space_Grotesk'] text-white">
-                  Muestrario de 15 Estilos
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  Muestrario de los 15 Estilos Artísticos
                 </h2>
-                <p className="text-sm text-slate-400">
-                  Compara tu imagen renderizada en todos los estilos artísticos y haz clic para seleccionarlo.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Compara en tiempo real tu diseño en todos los estilos disponibles. Haz clic en cualquiera para cargarlo en el estudio.
                 </p>
               </div>
-              <PillButton
-                variant="outline"
-                icon={<span className="material-symbols-outlined text-[18px]">arrow_back</span>}
-                onClick={() => setState((prev) => ({ ...prev, viewMode: 'single' }))}
-                className="w-auto px-4"
-              >
-                Volver al Estudio
-              </PillButton>
+
+              <div className="flex items-center gap-2">
+                <PillButton
+                  variant="solid"
+                  icon={<Wand2 className="w-4 h-4" />}
+                  onClick={() => setState((prev) => ({ ...prev, viewMode: 'single' }))}
+                >
+                  Volver al Estudio 1-a-1
+                </PillButton>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {/* Grid of 15 Styles */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {(Object.keys(STYLES_INFO) as StickerStyle[]).map((styleKey) => {
                 const info = STYLES_INFO[styleKey];
-                const previewImg = state.samplerImages[styleKey] || state.generatedSticker;
+                const samplerUrl = state.samplerImages[styleKey];
                 const isSelected = settings.style === styleKey;
 
                 return (
                   <div
                     key={styleKey}
-                    onClick={() => {
-                      setSettings((prev) => ({ ...prev, style: styleKey }));
-                      setState((prev) => ({ ...prev, viewMode: 'single' }));
-                    }}
-                    className={`p-4 rounded-3xl border transition-all cursor-pointer flex flex-col items-center gap-3 relative group ${
+                    className={`flex flex-col p-3 rounded-2xl border transition-all ${
                       isSelected
-                        ? 'bg-indigo-950/40 border-indigo-500 shadow-xl shadow-indigo-500/20'
-                        : 'bg-white/5 border-white/10 hover:border-indigo-500/50 hover:bg-white/10'
+                        ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-500 ring-2 ring-indigo-500/30 shadow-md'
+                        : 'bg-white dark:bg-[#12131b] border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20 shadow-xs'
                     }`}
                   >
-                    <div className="w-full aspect-square rounded-2xl checkerboard flex items-center justify-center p-3 relative overflow-hidden">
-                      {previewImg ? (
-                        <img
-                          src={previewImg}
-                          alt={info.label}
-                          className="max-w-full max-h-full object-contain drop-shadow-sticker group-hover:scale-105 transition-transform"
-                        />
-                      ) : (
-                        <div className="w-6 h-6 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="w-5 h-5 rounded-md flex items-center justify-center text-xs"
+                          style={{ backgroundColor: `${info.color}22`, color: info.color }}
+                        >
+                          {STYLE_ICONS[styleKey]}
+                        </span>
+                        <span className="text-xs font-black truncate text-slate-900 dark:text-white">
+                          {info.label}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-indigo-600 text-white">
+                          ACTIVO
+                        </span>
                       )}
                     </div>
-                    <div className="text-center w-full">
-                      <p className="font-extrabold text-sm text-white flex items-center justify-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]" style={{ color: info.color }}>
-                          {info.icon}
-                        </span>
-                        {info.label}
-                      </p>
-                      <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{info.desc}</p>
+
+                    <div className="aspect-square w-full rounded-xl checkerboard flex items-center justify-center p-3 mb-2 overflow-hidden bg-slate-100 dark:bg-[#181924]">
+                      {samplerUrl ? (
+                        <img
+                          src={samplerUrl}
+                          alt={info.label}
+                          className="max-h-full max-w-full object-contain drop-shadow-sticker"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center text-slate-400">
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-3 line-clamp-2 h-7">
+                      {info.desc}
+                    </p>
+
+                    <div className="flex items-center gap-1.5 mt-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveSnapshot();
+                          setSettings((prev) => ({ ...prev, style: styleKey }));
+                          setState((prev) => ({ ...prev, viewMode: 'single' }));
+                        }}
+                        className="flex-1 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-extrabold uppercase transition-all cursor-pointer"
+                      >
+                        Aplicar
+                      </button>
+                      {samplerUrl && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const a = document.createElement('a');
+                            a.href = samplerUrl;
+                            a.download = `sticker-${styleKey}.png`;
+                            a.click();
+                          }}
+                          title="Descargar este estilo"
+                          className="p-1.5 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-slate-200 cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </section>
+          </div>
         )}
 
-        {/* 3. SHEET VIEW (PRINTABLE STICKER SHEET) */}
+        {/* 3. Sticker Sheet Print Generator */}
         {state.viewMode === 'sheet' && (
-          <section className="flex-1 p-6 lg:p-10 overflow-y-auto dark-scrollbar flex flex-col items-center gap-6 max-w-5xl mx-auto w-full">
-            <div className="w-full flex flex-wrap items-center justify-between gap-4">
+          <div className="flex-1 p-4 lg:p-8 overflow-y-auto studio-scrollbar max-w-6xl mx-auto w-full flex flex-col items-center">
+            <div className="flex flex-wrap items-center justify-between w-full gap-4 mb-6">
               <div>
-                <h2 className="text-2xl font-extrabold font-['Space_Grotesk'] text-white">
-                  Hoja de Pegatinas Imprimible (A4)
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  Hoja de Impresión A4 de Pegatinas
                 </h2>
-                <p className="text-sm text-slate-400">
-                  Organiza tu pegatina en una cuadrícula con marcas de corte lista para imprimir y troquelar.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Plantilla de alta densidad con guías de corte troquelado listas para papel adhesivo o vinilo.
                 </p>
               </div>
 
+              {/* Density Controls */}
               <div className="flex items-center gap-3">
-                <SegmentedToggle
-                  value={String(settings.sheetDensity)}
-                  onChange={(val) => setSettings((prev) => ({ ...prev, sheetDensity: Number(val) }))}
-                  items={[
-                    { value: '4', label: '4 Pegatinas' },
-                    { value: '6', label: '6 Pegatinas' },
-                    { value: '9', label: '9 Pegatinas' },
-                    { value: '12', label: '12 Pegatinas' },
-                  ]}
-                  accentColor="#818cf8"
-                />
+                <div className="flex items-center gap-1.5 bg-white dark:bg-white/5 p-1 rounded-xl border border-slate-200 dark:border-white/10">
+                  <span className="text-[11px] font-bold text-slate-400 px-2">Densidad:</span>
+                  {[4, 6, 9, 12, 16].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setSettings((prev) => ({ ...prev, sheetDensity: num }))}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        settings.sheetDensity === num
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {num}x
+                    </button>
+                  ))}
+                </div>
+
                 <PillButton
                   variant="solid"
-                  icon={<span className="material-symbols-outlined text-[18px]">download</span>}
+                  icon={<Download className="w-4 h-4" />}
                   onClick={handleExportSheet}
-                  className="w-auto px-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
                 >
                   Descargar Hoja A4
                 </PillButton>
               </div>
             </div>
 
-            {/* Canvas Preview */}
-            <div className="w-full max-w-[600px] shadow-2xl rounded-2xl overflow-hidden border border-white/20">
-              <canvas ref={sheetCanvasRef} className="w-full h-auto bg-white block" />
+            {/* Live Sheet Canvas Preview */}
+            <div className="p-4 bg-slate-200 dark:bg-[#0c0d12] rounded-3xl border border-slate-300 dark:border-white/10 shadow-2xl flex items-center justify-center max-w-full overflow-hidden">
+              <canvas
+                ref={sheetCanvasRef}
+                className="max-w-[460px] md:max-w-[560px] w-full h-auto rounded-xl shadow-2xl bg-white"
+              />
             </div>
-          </section>
+          </div>
         )}
 
-        {/* 4. CANVAS VIEW (FREEFORM MULTI-LAYER EDITOR) */}
+        {/* 4. Canvas Editor View */}
         {state.viewMode === 'canvas' && (
-          <section className="flex-1 h-full w-full">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <CanvasEditor
               items={state.canvasItems}
               onUpdateItems={(items) => setState((prev) => ({ ...prev, canvasItems: items }))}
               onExport={handleExportCanvas}
               exportState={exportState}
             />
-          </section>
+          </div>
         )}
 
-        {/* 5. HISTORY VIEW */}
+        {/* 5. History Gallery View */}
         {state.viewMode === 'history' && (
-          <section className="flex-1 p-6 lg:p-10 overflow-y-auto dark-scrollbar flex flex-col gap-6 max-w-6xl mx-auto w-full">
-            <div className="flex items-center justify-between">
+          <div className="flex-1 p-4 lg:p-8 overflow-y-auto studio-scrollbar max-w-6xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-extrabold font-['Space_Grotesk'] text-white">
-                  Historial de Creaciones
+                <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  Historial de Pegatinas Generadas
                 </h2>
-                <p className="text-sm text-slate-400">
-                  Tus pegatinas generadas en esta sesión. Puedes restaurar configuraciones o descargarlas.
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Accede a todas las variantes y creaciones de esta sesión para descargarlas o reutilizarlas.
                 </p>
               </div>
-              <PillButton
-                variant="outline"
-                icon={<span className="material-symbols-outlined text-[18px]">delete</span>}
-                onClick={() => setState((prev) => ({ ...prev, history: [] }))}
-                className="w-auto px-4"
-              >
-                Vaciar Historial
-              </PillButton>
+              {state.history.length > 0 && (
+                <PillButton
+                  variant="outline"
+                  icon={<Trash2 className="w-3.5 h-3.5 text-rose-500" />}
+                  onClick={() => setState((prev) => ({ ...prev, history: [] }))}
+                >
+                  Vaciar Historial
+                </PillButton>
+              )}
             </div>
 
             {state.history.length === 0 ? (
-              <div className="p-16 border border-white/10 rounded-3xl bg-white/5 flex flex-col items-center justify-center gap-3 text-slate-500">
-                <span className="material-symbols-outlined text-5xl">history_toggle_off</span>
-                <p className="text-sm font-bold uppercase tracking-wider">Aún no hay pegatinas en el historial</p>
+              <div className="flex flex-col items-center justify-center p-12 text-slate-400 text-center">
+                <History className="w-12 h-12 opacity-30 mb-2" />
+                <p className="text-sm font-bold">Aún no hay creaciones en el historial.</p>
+                <p className="text-xs mt-1">
+                  Las pegatinas generadas en el estudio se guardarán automáticamente aquí.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {state.history.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 rounded-2xl bg-white/5 border border-white/10 flex flex-col items-center gap-2 group hover:border-indigo-500/50 transition-all"
+                    className="flex flex-col p-2.5 rounded-2xl bg-white dark:bg-[#12131a] border border-slate-200 dark:border-white/10 shadow-xs group"
                   >
-                    <div className="w-full aspect-square checkerboard rounded-xl p-2 flex items-center justify-center overflow-hidden">
+                    <div className="aspect-square w-full rounded-xl checkerboard flex items-center justify-center p-2 mb-2 overflow-hidden">
                       {item.image && (
                         <img
                           src={item.image}
-                          alt="Historial"
-                          className="max-w-full max-h-full object-contain drop-shadow-sticker group-hover:scale-105 transition-transform"
+                          alt="Sticker History"
+                          className="max-h-full max-w-full object-contain drop-shadow-sticker group-hover:scale-105 transition-transform"
                         />
                       )}
                     </div>
-                    <div className="text-center w-full">
-                      <p className="text-[11px] font-bold text-white uppercase truncate">
-                        {STYLES_INFO[item.settings.style]?.label || item.settings.style}
-                      </p>
-                      <p className="text-[9px] text-slate-400">
-                        {new Date(item.timestamp).toLocaleTimeString()}
-                      </p>
+                    <div className="text-[10px] font-bold text-slate-600 dark:text-slate-400 truncate mb-2">
+                      {STYLES_INFO[item.settings.style]?.label || item.settings.style} • {item.settings.shape}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSettings({ ...item.settings });
-                        setState((prev) => ({ ...prev, viewMode: 'single' }));
-                      }}
-                      className="w-full py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500 text-indigo-300 hover:text-white text-[10px] font-bold uppercase tracking-wider transition-all"
-                    >
-                      Restaurar
-                    </button>
+                    <div className="flex items-center gap-1 mt-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          saveSnapshot();
+                          setSettings(item.settings);
+                          if (item.image) {
+                            setState((prev) => ({
+                              ...prev,
+                              generatedSticker: item.image,
+                              viewMode: 'single',
+                            }));
+                          }
+                        }}
+                        className="flex-1 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-extrabold uppercase transition-all cursor-pointer"
+                      >
+                        Restaurar
+                      </button>
+                      {item.image && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const a = document.createElement('a');
+                            a.href = item.image!;
+                            a.download = `sticker-history-${item.id}.png`;
+                            a.click();
+                          }}
+                          className="p-1 rounded-lg bg-slate-100 dark:bg-white/10 hover:bg-slate-200 text-slate-700 dark:text-slate-200 cursor-pointer"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </div>
         )}
       </main>
+
+      {/* AI Generator Modal / Flow Inpainting Studio */}
+      {isAiModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#12131d] w-full max-w-lg rounded-3xl border border-slate-200 dark:border-white/15 p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Generar Pegatina con IA
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Google Flow SDK • Nano Banana & Gemini Image Pipeline
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isAiCreating && setIsAiModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {/* Engine Selector in Modal */}
+              <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-slate-900 text-white dark:bg-[#161824] border border-slate-700/80 dark:border-white/15">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                    MOTOR DE INTELIGENCIA
+                  </span>
+                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                    {AI_ENGINES_INFO[settings.aiEngine]?.badge}
+                  </span>
+                </div>
+                <div className="relative flex items-center justify-between mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{AI_ENGINES_INFO[settings.aiEngine]?.icon}</span>
+                    <div>
+                      <p className="text-xs font-black text-white">{AI_ENGINES_INFO[settings.aiEngine]?.label}</p>
+                      <p className="text-[10px] text-slate-400">{AI_ENGINES_INFO[settings.aiEngine]?.desc}</p>
+                    </div>
+                  </div>
+                  <ChevronsUpDown className="w-4 h-4 text-slate-400 shrink-0" />
+                  <select
+                    value={settings.aiEngine}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, aiEngine: e.target.value as AiEngine }))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  >
+                    {(Object.keys(AI_ENGINES_INFO) as AiEngine[]).map((engKey) => (
+                      <option key={engKey} value={engKey} className="bg-slate-900 text-white">
+                        {AI_ENGINES_INFO[engKey].icon} {AI_ENGINES_INFO[engKey].label} ({AI_ENGINES_INFO[engKey].badge})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Sujeto o Concepto del Sticker:
+                </label>
+                <textarea
+                  value={aiSubjectPrompt}
+                  onChange={(e) => setAiSubjectPrompt(e.target.value)}
+                  placeholder="Ej. Dragón místico kawaii con destellos dorados, taza de café humeante pixel-art, robot cyberpunk con gafas de sol..."
+                  rows={3}
+                  className="w-full p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-300 dark:border-white/15 text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Reference Image Option */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="w-4 h-4 text-indigo-500" />
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      Usar Imagen Actual como Referencia Visual
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Transforma o transfiere estilo manteniendo la silueta base
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={aiUseReference}
+                  onChange={(e) => setAiUseReference(e.target.checked)}
+                  className="w-4 h-4 accent-indigo-600 rounded cursor-pointer"
+                />
+              </div>
+
+              {/* Specs pill badges */}
+              <div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-black/30 p-2.5 rounded-xl border border-slate-200 dark:border-white/5">
+                <span>Estilo: <strong className="text-indigo-600 dark:text-indigo-400">{STYLES_INFO[settings.style].label}</strong></span>
+                <span>•</span>
+                <span>Acabado: <strong className="text-amber-600 dark:text-amber-400">{FINISH_INFO[settings.finish].label}</strong></span>
+                <span>•</span>
+                <span>Silueta: <strong className="text-purple-600 dark:text-purple-400">{settings.shape}</strong></span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-white/10">
+              <button
+                type="button"
+                onClick={() => setIsAiModalOpen(false)}
+                disabled={isAiCreating}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleGenerateAiSticker}
+                disabled={isAiCreating || !aiSubjectPrompt.trim()}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-500/25 transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isAiCreating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Creando con IA...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Generar Pegatina</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Technical Documentation Modal */}
+      {isDocsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#12131d] w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-200 dark:border-white/15 p-6 shadow-2xl flex flex-col gap-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <FileCode2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Documentación Técnica • Hub Stickers Pro 2026
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Arquitectura del Sistema, Flow Tool SDK y Procesamiento Local
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDocsModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto studio-scrollbar pr-2 flex flex-col gap-4 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+              <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/20">
+                <h4 className="font-extrabold text-indigo-950 dark:text-indigo-200 mb-1">
+                  1. Arquitectura y Entorno Sandbox
+                </h4>
+                <p>
+                  Construido con React 19 + TypeScript y Tailwind CSS v4. Incorpora aceleración WebGL/WebGPU para segmentación de sujetos y modelos Gemini 3.7 / Nano Banana mediante proxy seguro de servidor.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <h4 className="font-extrabold text-slate-900 dark:text-white">
+                  2. Procesos Clave y Flujo de Datos
+                </h4>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li><strong>Adquisición de Imagen:</strong> Selección de archivos locales (PNG/JPG/WebP/SVG) o generación de concepto mediante IA.</li>
+                  <li><strong>Smart Cutout (Xenova/modnet):</strong> Segmentación de bordes por red neuronal para canal alfa transparente puro.</li>
+                  <li><strong>Tight Crop (cropToContent):</strong> Bounding box automático de píxeles no transparentes para optimizar encuadre.</li>
+                  <li><strong>Composición de Lienzo (Framer Motion):</strong> Manipulación con arrastre, rotación angular (-180° a +180°), escala y orden de capas (Z-index).</li>
+                  <li><strong>Undo / Redo:</strong> Pila de snapshots en memoria de 20 niveles para revertir o rehacer cualquier ajuste.</li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <h4 className="font-extrabold text-slate-900 dark:text-white">
+                  3. Integración con Flow SDK (Endpoints)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">Flow.media.select</span>
+                    <p className="font-sans text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Selección y subida de imágenes</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">Flow.generate.image</span>
+                    <p className="font-sans text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Invocación de modelos generativos</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">Flow.upload</span>
+                    <p className="font-sans text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Registro temporal de imágenes de referencia</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                    <span className="text-indigo-600 dark:text-indigo-400 font-bold">Flow.download</span>
+                    <p className="font-sans text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Exportación de pegatinas, hojas A4 y docs</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-white/10">
+              <button
+                type="button"
+                onClick={handleDownloadDocs}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar Docs (.MD)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsDocsModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
